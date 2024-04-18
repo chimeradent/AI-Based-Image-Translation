@@ -1,0 +1,71 @@
+import kivy
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.image import Image
+from kivy.uix.button import Button
+from kivy.graphics.texture import Texture
+import cv2
+import numpy as np
+import tensorflow as tf
+
+class PictureTranslationApp(App):
+
+    def build(self):
+        # Load the trained model
+        self.model = tf.keras.models.load_model('model.h5')
+
+        # Create the app layout
+        layout = BoxLayout(orientation='vertical')
+
+        # Create the image widget
+        self.image_widget = Image()
+
+        # Create the translation label
+        self.translation_label = Label(text='Translation:')
+
+        # Create the capture button
+        capture_button = Button(text='Capture')
+        capture_button.bind(on_press=self.capture)
+
+        # Add the widgets to the layout
+        layout.add_widget(self.image_widget)
+        layout.add_widget(self.translation_label)
+        layout.add_widget(capture_button)
+
+        return layout
+
+    def capture(self, event):
+        # Capture the image from the camera
+        cap = cv2.VideoCapture(0)
+        ret, frame = cap.read()
+        cap.release()
+
+        # Preprocess the image
+        img = cv2.resize(frame, (224, 224))
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+        kernel = np.ones((3, 3), np.uint8)
+        erosion = cv2.erode(thresh, kernel, iterations=1)
+        dilation = cv2.dilate(erosion, kernel, iterations=1)
+        x = np.array(dilation, dtype='float32')
+        x = x / 255.0
+        x = np.expand_dims(x, axis=0)
+        x = np.expand_dims(x, axis=-1)
+
+        # Make a prediction with the model
+        prediction = self.model.predict(x)
+
+        # Get the predicted translation
+        translation = np.argmax(prediction)
+
+        # Set the translation label text
+        self.translation_label.text = f'Translation: {translation}'
+
+        # Display the captured image
+        texture = Texture.create(size=(img.shape[1], img.shape[0]), colorfmt='bgr')
+        texture.blit_buffer(img.tostring(), colorfmt='bgr', bufferfmt='ubyte')
+        self.image_widget.texture = texture
+
+if _name_ == '_main_':
+    PictureTranslationApp().run()

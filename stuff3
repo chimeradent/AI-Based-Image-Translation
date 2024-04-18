@@ -1,0 +1,31 @@
+import tensorflow as tf
+import cv2
+import numpy as np
+
+# Load the trained model
+model = tf.keras.models.load_model('model.h5')
+
+# Load the input image
+img = cv2.imread('input_image.jpg')
+
+# Preprocess the input image
+img = cv2.resize(img, (224, 224))
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+blur = cv2.GaussianBlur(gray, (5, 5), 0)
+thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+kernel = np.ones((3, 3), np.uint8)
+erosion = cv2.erode(thresh, kernel, iterations=1)
+dilation = cv2.dilate(erosion, kernel, iterations=1)
+x = np.array(dilation, dtype='float32')
+x = x / 255.0
+x = np.expand_dims(x, axis=0)
+x = np.expand_dims(x, axis=-1)
+
+# Make a prediction with the model
+prediction = model.predict(x)
+
+# Get the predicted translation
+translation = np.argmax(prediction)
+
+# Print the predicted translation
+print('Predicted translation:', translation)

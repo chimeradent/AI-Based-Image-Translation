@@ -1,0 +1,29 @@
+import cv2
+import numpy as np
+
+# Load the input image
+img = cv2.imread('input_image.jpg')
+
+# Resize the image to a fixed size
+img = cv2.resize(img, (224, 224))
+
+# Convert the image to grayscale
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+# Apply a Gaussian blur to reduce noise
+blur = cv2.GaussianBlur(gray, (5, 5), 0)
+
+# Apply adaptive thresholding to binarize the image
+thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 11, 2)
+
+# Apply erosion and dilation to remove small noise
+kernel = np.ones((3, 3), np.uint8)
+erosion = cv2.erode(thresh, kernel, iterations=1)
+dilation = cv2.dilate(erosion, kernel, iterations=1)
+
+# Convert the image to a float32 array and normalize the pixel values
+x = np.array(dilation, dtype='float32')
+x = x / 255.0
+
+# Add a batch dimension to the input
+x = np.expand_dims(x, axis=0)
